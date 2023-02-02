@@ -1,0 +1,44 @@
+﻿@page "/"
+@using Microsoft.AspNetCore.SignalR.Client
+@inject HttpClient Http
+
+<h1>Username: @_hubConnection?.ConnectionId</h1>
+
+@foreach (var message in _messages)
+{
+    <p>@message</p><br>
+}
+
+<MudTextField T="string" @bind-Value="message"></MudTextField>
+<MudButton OnClick="SendMessage">Send</MudButton>
+
+@code {
+    private readonly List<string> _messages = new List<string>();
+    private string? message { get; set; }
+    private HubConnection? _hubConnection;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _hubConnection = new HubConnectionBuilder()
+            .WithUrl("https://localhost:7127/chathub")
+            .Build();
+
+        _hubConnection.On<string, string>("NewMessage", GetMessage);
+        
+        await _hubConnection.StartAsync();
+    }
+
+    private void GetMessage(string username, string message)
+    {
+        _messages.Add($"{username}: {message}");
+        StateHasChanged();
+    }
+
+    private async Task SendMessage()
+    {
+        if (_hubConnection?.State == HubConnectionState.Connected)
+        {
+            await _hubConnection.InvokeAsync(nameof(SendMessage), message ?? "helo");
+        }
+    }
+}
